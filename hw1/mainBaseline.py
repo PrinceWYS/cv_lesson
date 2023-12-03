@@ -32,7 +32,6 @@ if __name__ == '__main__':
             mask1 = data['mask'] / 255.0
         else:
             mask1 = cv2.cvtColor(data['mask'], cv2.COLOR_BGR2GRAY) / 255.0
-        mask3 = np.tile(mask1, (1, 1, 3))
         m = np.nonzero(mask1 == 1)
         p = len(m[0])
         print("shape of m: ", m[0].shape, ", p: ", p)
@@ -41,4 +40,4 @@ if __name__ == '__main__':
         normal, albedo = myPMS.L2_PMS(data, m)
         normal_sort, albedo_sort = myPMS.sort_data_PMS(data, m)
         
-        myIO.store(data, dataName, normal, albedo, normal_sort, albedo_sort)
+        myIO.store(data, dataName, normal, albedo, normal_sort, albedo_sort, mask1)

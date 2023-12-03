@@ -23,7 +23,7 @@ def storeAlbedo(albedo, datadir, isSort):
         name = datadir+'/albedo_map.png'
     cv2.imwrite(name, albedo_map)
 
-def store(data, datadir, normal, albedo, normal_sort, albedo_sort, bitdepth=16, gamma=1, resize=1):
+def store(data, datadir, normal, albedo, normal_sort, albedo_sort, mask, bitdepth=16,  gamma=1, resize=1):
     print('------------')
     print("start save pictures")
     path = './output/' + datadir
@@ -60,6 +60,9 @@ def store(data, datadir, normal, albedo, normal_sort, albedo_sort, bitdepth=16, 
         newPic_sort = newPic_sort * (2 ** bitdepth - 1) / gamma
         newPic_sort = ((newPic_sort - np.min(newPic_sort)) / (np.max(newPic_sort) - np.min(newPic_sort)) * 255).astype(np.uint8)
         newPic_sort = cv2.cvtColor(newPic_sort, cv2.COLOR_RGB2BGR)
+        
+        newPic = newPic * np.expand_dims(mask, -1)
+        newPic_sort = newPic_sort * np.expand_dims(mask, -1)
         
         # print(path+'/'+filenames[i][-7:])
         file = path+'/'+filenames[i][-7:]
