@@ -1,6 +1,7 @@
 # Photometric Stereo
 
 ## 项目结构
+```
 .
 ├── READMEmd
 ├── imread_datadir_re.py    # 读取原图像
@@ -19,6 +20,7 @@
 │   ├── catPNG
 │   └── potPNG
 └── requirements.txt        # 依赖文件
+```
 
 ## 运行方式
 安装所需的依赖环境: (测试环境: `python=3.9`)
