@@ -1,5 +1,4 @@
 import numpy as np
-import cv2
 
 def L2_PMS(data, m):
     print('------------')

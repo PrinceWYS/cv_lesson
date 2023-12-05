@@ -66,4 +66,4 @@ def store(data, datadir, normal, albedo, normal_sort, albedo_sort, mask, bitdept
         
         # print(path+'/'+filenames[i][-7:])
         file = path+'/'+filenames[i][-7:]
-        cv2.imwrite(file, np.hstack((newPic_sort ,newPic, pic)))
+        cv2.imwrite(file, np.hstack((pic, newPic, newPic_sort)))
