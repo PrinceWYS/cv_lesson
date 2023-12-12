@@ -1,7 +1,68 @@
 import numpy as np
 import cv2
+from copy import copy
 
-def stich(img1, img2, M):
+def blend_images(img1, img2, w1, w2):
+    assert img1.shape == img2.shape
+    out = copy(img1)
+    valid_mask1 = (img1 > 0).astype(bool)
+    valid_mask2 = (img2 > 0).astype(bool)
+    inter_mask = ((valid_mask2 + valid_mask1) > 1).astype(bool)
+    kernel = cv2.getGaussianKernel(5, 1)
+    sub = (valid_mask2.astype(int) - inter_mask.astype(int) > 0).astype(bool)
+    # blending
+    out[sub] = img2[sub]
+    return out
+
+def getWarpBound(w, h, M):
+    pts = (np.float32([[0, 0],
+                      [w-1, h-1]])).reshape((-1, 1, 2))
+    pts_format = pts.shape[1:]
+    pts = pts.reshape((-1, 2))
+    pts3 = np.concatenate([pts, np.ones((pts.shape[0], 1))], axis=1)
+    # M_tmp = M.reshape([3, 3])
+    warp_dst_pts = (M @ pts3.T).T
+    warp_dst_pts = warp_dst_pts[:, :2] / warp_dst_pts[:, 2].reshape((-1, 1))
+    warp_pts = (warp_dst_pts.reshape((-1, *pts_format))).reshape((-1, 2))
+    w_min = np.min([warp_pts[0, 0], 0])
+    h_min = np.min([warp_pts[0, 1], 0])
+    w_max = np.max([warp_pts[1, 0], w - 1])
+    h_max = np.max([warp_pts[1, 1], h - 1])
+    
+    return w_min, h_min, w_max, h_max
+
+def warp_src_image(img, M, low=None, high=None):
+    if low is None:
+        low = (0, 0)
+    assert high is not None
+    w_low, h_low = low
+    w_high, h_high = high
+    content_height = np.ceil(h_high - h_low).astype(int)
+    content_width = np.ceil(w_high - w_low).astype(int)
+    # if content_width * content_height > 3000 * 3000:
+    #     raise Exception('exceed maximum image size')
+
+    xx, yy = np.meshgrid(np.arange(w_low, w_high), np.arange(h_low, h_high))
+    xx = xx.flatten().reshape((-1, 1))
+    yy = yy.flatten().reshape((-1, 1))
+
+    pos = np.concatenate([xx, yy, np.ones_like(yy)], axis=1)
+    transformed_pts = (M @ pos.T).T
+    transformed_pts = transformed_pts[:, :2] / transformed_pts[:, 2].reshape((-1, 1))
+
+    transformed_pts = transformed_pts.reshape((content_height, content_width, 2))
+
+    invalid_mask = ((transformed_pts[..., 0] < 0) + (transformed_pts[..., 1] < 0) \
+                    + (transformed_pts[..., 0] > content_width - 1) + (
+                            transformed_pts[..., 1] > content_height - 1)) > 0
+    # map pixel (x, y) of each position
+    warped_img = cv2.remap(img, transformed_pts[..., 0].astype(np.float32),
+                           transformed_pts[..., 1].astype(np.float32),
+                           interpolation=cv2.INTER_LINEAR)
+    warped_img[invalid_mask] = 0
+    return warped_img
+
+def stitch_simple(img1, img2, M):
     horizontal = M[0][2]
     vertical = M[1][2]
     if abs(horizontal) > abs(vertical):
@@ -10,8 +71,7 @@ def stich(img1, img2, M):
         height = max(img1.shape[0], img2.shape[0])
         if horizontal > 0:
             result = cv2.warpPerspective(img1, M, (img1.shape[1] + img2.shape[1], img1.shape[0]))
-            # result[0:img2.shape[0], 0:img2.shape[1]] = img2
-            result = cv2.addWeighted(result, 0.5, img2, 0.5, 0)
+            result[0:img2.shape[0], 0:img2.shape[1]] = img2
         else:
             M_inv = np.linalg.inv(M)
             result = cv2.warpPerspective(img2, M_inv, (img1.shape[1] + img2.shape[1], img2.shape[0]))
@@ -27,48 +87,21 @@ def stich(img1, img2, M):
             result[0:img1.shape[0], 0:img1.shape[1]] = img1
     return result
 
-
-def stitch_image(img1, img2, H):
-    # 1. 获得每张图片的四个角点
-    # 2. 对图片进行变换（单应性矩阵使图进行旋转，平移）
-    # 3. 创建一张大图，将两张图拼接到一起
-    # 4. 将结果输出
-
-    #获得原始图的高/宽
-    h1, w1 = img1.shape[:2]
-    h2, w2 = img2.shape[:2]
+def stitch(img1, img2, M, low=None, high=None):
+    h, w, _ = img1.shape
+    w_min, h_min, w_max, h_max = getWarpBound(w, h, M)
     
-    # 获取图片的四个角点
-    img1_dims = np.float32([[0, 0], [0, h1], [w1, h1], [w1, 0]]).reshape(-1, 1, 2)
-    img2_dims = np.float32([[0, 0], [0, h2], [w2, h2], [w2, 0]]).reshape(-1, 1, 2)
-
-    # 将图1的原始四个点，根据单应性矩阵，获得投影坐标
-    img1_transform = cv2.perspectiveTransform(img1_dims, H)
-
-    # 将两个图像的角点拼接起来。
-    result_dims = np.concatenate((img2_dims, img1_transform), axis=0)
-    #print(result_dims)
-
-    # 获取图像中的最小点，最大点，防止有些信息显示不到
-    [x_min, y_min] = np.int32(result_dims.min(axis=0).ravel()-0.5)
-    [x_max, y_max ] = np.int32(result_dims.max(axis=0).ravel()+0.5)
-
-    #平移的距离（左加右减，上加下减）
-    transform_dist = [-x_min, -y_min]
-
-    #[1, 0, dx]
-    #[0, 1, dy]
-    #[0, 0, 1 ]
-    # 创建好平移矩阵
-    transform_array = np.array([[1, 0, transform_dist[0]],
-                                [0, 1, transform_dist[1]],
-                                [0, 0, 1]])
-    # 透视变换，得到结果矩阵（只是img1来进行变换），但是图片是img1+img2的大小
-    result_img = cv2.warpPerspective(img1, transform_array.dot(H), (x_max-x_min, y_max-y_min))
-
-
-    # 将img2贴到结果贴到原图中
-    result_img[transform_dist[1]:transform_dist[1]+h2, 
-                transform_dist[0]:transform_dist[0]+w2] = img2
-
-    return result_img
+    if high is None:
+        high = (w_max, h_max)
+    if low is None:
+        low_offset_w, low_offset_h = (0, 0)
+        if w_min < 0:
+            low_offset_w = np.floor(w_min).astype(int)
+        if h_min < 0:
+            low_offset_h = np.floor(h_min).astype(int)
+        low = (low_offset_w, low_offset_h)
+    warp_img1 = warp_src_image(img1, np.linalg.inv(M), low=low, high=high)
+    warp_img2 = warp_src_image(img2, np.eye(3), low=low, high=high)
+    img = blend_images(warp_img1, warp_img2, 0.5, 0.5)
+    
+    return img
