@@ -46,12 +46,13 @@ def sort_data_PMS(data, m):
         
         maxGray = np.max(gray[:, h, w])
         minGray = np.min(gray[:, h, w])
+        diff = maxGray - minGray
         
         L_sorted = np.array([])
         img_sorted = np.array([])
         
         for j in range(len(imgs)):
-            if gray[j, h, w]<=minGray or gray[j, h, w]>=maxGray:
+            if gray[j, h, w]<=(minGray + diff*0.2) or gray[j, h, w]>=(maxGray - diff*0.2):
                 continue
             else:
                 L_sorted = np.append(L_sorted, L[j])

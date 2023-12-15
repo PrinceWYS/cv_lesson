@@ -1,21 +1,22 @@
 import numpy as np
 import cv2
 from tqdm import tqdm
+import sys
 
 def detection(img, detectionMethod, gui=False):
     if detectionMethod == "SIFT":
         sift = cv2.SIFT_create()
         kp, des = sift.detectAndCompute(img['gray'], None)
-        
         img['feature'] = np.zeros(img['img'].shape)
         img['feature'] = cv2.drawKeypoints(img['gray'], kp, img['feature'])
     elif detectionMethod == "ORB":
-        orb = cv2.ORB_create(10000)
+        orb = cv2.ORB_create(1500)
         kp, des = orb.detectAndCompute(img['gray'], None)
         img['feature'] = np.zeros(img['img'].shape)
         img['feature'] = cv2.drawKeypoints(img['gray'], kp, None, (0,0,255), 0)
     else :
         print('[ERROR] Unsupport method')
+        sys.exit(1)
     
     if gui:
         cv2.namedWindow('feature', 0)

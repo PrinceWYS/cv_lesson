@@ -1,9 +1,9 @@
 import feature
 import homography
-import stich
+import stitch
 import numpy as np
 import cv2
-import sys
+from tqdm import tqdm
 import argparse
 import os
 from copy import copy
@@ -82,7 +82,7 @@ if __name__ == "__main__":
         for i in range(n_image):
             M_list[i] = np.linalg.inv(M_pivot) @ M_list[i]
             h, w, _ = myStich.imgs[i]['img'].shape
-            warp_bounds[i] = stich.getWarpBound(w, h, M_list[i])
+            warp_bounds[i] = stitch.getWarpBound(w, h, M_list[i])
         global_w_min, global_h_min, global_w_max, global_h_max = warp_bounds[0]
         
         for i in range(1, n_image):
@@ -98,11 +98,13 @@ if __name__ == "__main__":
             np.ceil(global_w_max - global_w_min).astype(int),
             3), dtype=myStich.imgs[0]['img'].dtype)
         
-        for i in range(n_image):
+        print(f'[INFO] Start to stitch...')
+        
+        for i in tqdm(range(n_image)):
             img1 = myStich.imgs[i]['img']
             img2 = myStich.imgs[pivotIdx]['img']
-            warp_img = stich.stitch(img1, img2, M_list[i], (global_w_min, global_h_min), (global_w_max, global_h_max))
-            result = stich.blend_images(result, warp_img, 0.5, 0.5)
+            warp_img = stitch.stitch(img1, img2, M_list[i], (global_w_min, global_h_min), (global_w_max, global_h_max))
+            result = stitch.blend_images(result, warp_img, 0.5, 0.5)
         
         cv2.namedWindow('Result', 0)
         cv2.imshow('Result', result)
@@ -111,8 +113,8 @@ if __name__ == "__main__":
         pass
     else:
         matches = feature.solve(myStich.img1, myStich.img2, myStich.method)
-        M = homography.estimate(myStich.img1, myStich.img2, matches)
-        result = stich.stich(myStich.img1['img'], myStich.img2['img'], M)
+        M, my_M = homography.estimate(myStich.img1, myStich.img2, matches)
+        result = stitch.stitch(myStich.img1['img'], myStich.img2['img'], my_M)
 
     print(f'[INFO] result size: ', result.shape)
     cv2.namedWindow('Result', 0)
