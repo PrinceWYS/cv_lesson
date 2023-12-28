@@ -50,6 +50,7 @@ python main.py [-h] [-img1 IMG1] [-img2 IMG2] [-d DIR] [-m METHOD] [-a IFALL] [-
     -a IFALL, --all IFALL
                         whether stitch all pics (False by default)
     -g GUI, --gui GUI     use gui mode          (False by default)
+    -i ITER, --iter ITER  max iteration
 ```
 
 运行示例
@@ -58,4 +59,5 @@ python main.py [-h] [-img1 IMG1] [-img2 IMG2] [-d DIR] [-m METHOD] [-a IFALL] [-
 python main.py -img1 ./data1/112_1298.JPG -img2 ./data2/112_1299.JPG -m orb
 # stitch all pictures in one directory using sift with gui
 python main.py -d ./data3 -a True -m sift -g True
+python main.py -d ./data3 -a True -m mysift -i 5000
 ```
