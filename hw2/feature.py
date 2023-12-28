@@ -10,10 +10,59 @@ def detection(img, detectionMethod, gui=False):
         img['feature'] = np.zeros(img['img'].shape)
         img['feature'] = cv2.drawKeypoints(img['gray'], kp, img['feature'])
     elif detectionMethod == "ORB":
-        orb = cv2.ORB_create(1500)
+        orb = cv2.ORB_create(5000)
         kp, des = orb.detectAndCompute(img['gray'], None)
         img['feature'] = np.zeros(img['img'].shape)
         img['feature'] = cv2.drawKeypoints(img['gray'], kp, None, (0,0,255), 0)
+    elif detectionMethod == "MYSIFT":
+        mySift = cv2.SIFT_create()
+        kp, des = mySift.detectAndCompute(img['gray'], None)
+        num = len(kp)
+        img['feature'] = np.zeros(img['img'].shape)
+        img['feature'] = cv2.drawKeypoints(img['gray'], kp, img['feature'])
+        des = np.zeros((num, 9))
+        h, w = img['gray'].shape
+        for i in range(len(kp)):
+            y, x = kp[i].pt
+            x = int(x)
+            y = int(y)
+            if x==0 and y==0:
+                vec = np.array([0, 0,                   0,
+                                0, img['gray'][x][y  ], img['gray'][x+1][y  ],
+                                0, img['gray'][x][y+1], img['gray'][x+1][y+1]])
+            elif x==h-1 and y==0:
+                vec = np.array([0,                     0,                   0,
+                                img['gray'][x-1][y  ], img['gray'][x][y  ], 0,
+                                img['gray'][x-1][y+1], img['gray'][x][y+1], 0])
+            elif x==0 and y==w-1:
+                vec = np.array([0, img['gray'][x][y-1], img['gray'][x+1][y-1],
+                                0, img['gray'][x][y  ], img['gray'][x+1][y  ],
+                                0, 0,                   0])
+            elif x==h-1 and y==w-1:
+                vec = np.array([img['gray'][x-1][y-1], img['gray'][x][y-1], 0,
+                                img['gray'][x-1][y  ], img['gray'][x][y  ], 0,
+                                0, 0, 0])
+            elif x==0:
+                vec = np.array([0, img['gray'][x][y-1], img['gray'][x+1][y-1],
+                                0, img['gray'][x][y  ], img['gray'][x+1][y  ],
+                                0, img['gray'][x][y+1], img['gray'][x+1][y+1]])
+            elif x==h-1:
+                vec = np.array([img['gray'][x-1][y-1], img['gray'][x][y-1], 0,
+                                img['gray'][x-1][y  ], img['gray'][x][y  ], 0,
+                                img['gray'][x-1][y+1], img['gray'][x][y+1], 0])
+            elif y==0:
+                vec = np.array([0,                     0,                   0,
+                                img['gray'][x-1][y  ], img['gray'][x][y  ], img['gray'][x+1][y  ],
+                                img['gray'][x-1][y+1], img['gray'][x][y+1], img['gray'][x+1][y+1]])
+            elif y==w-1:
+                vec = np.array([img['gray'][x-1][y-1], img['gray'][x][y-1], img['gray'][x+1][y-1],
+                                img['gray'][x-1][y  ], img['gray'][x][y  ], img['gray'][x+1][y  ],
+                                0,                     0,                   0])
+            else:
+                vec = np.array([img['gray'][x-1][y-1], img['gray'][x][y-1], img['gray'][x+1][y-1],
+                                img['gray'][x-1][y  ], img['gray'][x][y  ], img['gray'][x+1][y  ],
+                                img['gray'][x-1][y+1], img['gray'][x][y+1], img['gray'][x+1][y+1]])
+            des[i] = vec
     else :
         print('[ERROR] Unsupport method')
         sys.exit(1)
@@ -28,28 +77,27 @@ def detection(img, detectionMethod, gui=False):
     img['kp'] = kp
     img['des'] = des
 
-def euclidean_distance(x, y):
-    return np.sqrt(np.sum((x - y)**2))
+def distance(x, y, type="SIFT"):
+    if type == "SIFT" or type == "MYSIFT":
+        return np.sqrt(np.sum((x - y)**2, axis=1))
+    elif type == "ORB":
+        return np.sum(x != y, axis=1)
 
-def knn_match(des1, des2, k):
+def knn_match(des1, des2, k, type="SIFT"):
     matches = []
-    for i, desc1 in tqdm(enumerate(des1), total=len(des1)):  
+    for i, desc1 in tqdm(enumerate(des1), total=len(des1)):
         desc1_tile = np.tile(desc1, (len(des2), 1))  
-        distances = np.sqrt(np.sum((desc1_tile - des2)**2, axis=1))  
-        sorted_indices = np.argsort(distances)  
-        k_best_matches = [(index, distances[index]) for index in sorted_indices[:k]]  
+        # distances = np.sqrt(np.sum((desc1_tile - des2)**2, axis=1))
+        distances = distance(desc1_tile, des2, type)
+        sorted_indices = np.argsort(distances)
+        k_best_matches = [(index, distances[index]) for index in sorted_indices[:k]]
         matches.append((i, k_best_matches))
     return matches
 
-def matching(img1, img2, gui=False):
-    bf = cv2.BFMatcher(cv2.NORM_L2)
-    # matches = bf.knnMatch(img1['des'], img2['des'], k=2)
-    matches = knn_match(img1['des'], img2['des'], k=2)
+def matching(img1, img2, gui=False, type="SIFT"):
+    matches = knn_match(img1['des'], img2['des'], k=2, type=type)
 
     goodMatch = []
-    # for m, n in matches:
-    #     if m.distance < 0.50 * n.distance:
-    #         goodMatch.append(m)
     for query_idx, knn_list in matches:  
         best_match, second_best_match = knn_list[0], knn_list[1]
         if best_match[1] < 0.7 * second_best_match[1]:
@@ -58,6 +106,8 @@ def matching(img1, img2, gui=False):
     matches_dmatch = [cv2.DMatch(index1, index2, 0) for index1, index2 in goodMatch]
 
     res = cv2.drawMatches(img1['gray'], img1['kp'], img2['gray'], img2['kp'], matches_dmatch, None, flags=2)
+    
+    cv2.imwrite('match.jpg', res)
     
     if gui:
         cv2.namedWindow('match', 0)
@@ -73,5 +123,5 @@ def solve(img1, img2, useMethod='SIFT', gui=False):
     print('[INFO] The feature detection method is ', useMethod)
     detection(img1, useMethod, gui)
     detection(img2, useMethod, gui)
-    matches = matching(img1, img2, gui)
+    matches = matching(img1, img2, gui, useMethod)
     return matches

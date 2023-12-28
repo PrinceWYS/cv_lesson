@@ -16,7 +16,6 @@ def blend_images(img1, img2):
 def getWarpBound(w, h, M):
     pts = (np.float32([[0, 0],
                       [w-1, h-1]])).reshape((-1, 1, 2))
-    
     warp_pts = cv2.perspectiveTransform(pts, M).reshape(-1, 2)
 
     w_min = np.min([warp_pts[0, 0], 0])

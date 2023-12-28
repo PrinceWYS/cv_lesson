@@ -6,6 +6,7 @@ import cv2
 from tqdm import tqdm
 import argparse
 import os
+import time
 from copy import copy
 
 class MyStich:
@@ -17,6 +18,7 @@ class MyStich:
         parser.add_argument("-m", "--method", help="feature detector method", dest="Method", type=str, default="SIFT")
         parser.add_argument("-a", "--all", help="whether stitch all pics", dest="ifAll", type=str, default="False")
         parser.add_argument("-g", "--gui", help="use gui mode", dest="Gui", type=bool, default=False)
+        parser.add_argument("-i", "--iter", help="max iteration", dest="Iter", type=int, default=100)
         self.args = parser.parse_args()
         
         self.imgs = []
@@ -25,6 +27,8 @@ class MyStich:
         self.dir = self.args.Dir
         self.method = self.args.Method.upper()
         self.ifAll = self.args.ifAll
+        self.gui = self.args.Gui
+        self.iter = self.args.Iter
         
         if self.dir.endswith('/'):  
             self.dir = self.dir[:-1]
@@ -53,7 +57,7 @@ class MyStich:
             self.imgs.append(data)
 
 if __name__ == "__main__":
-    
+    start = time.time()
     myStich = MyStich()
 
     if myStich.ifAll == 'True':
@@ -66,8 +70,8 @@ if __name__ == "__main__":
             pre_img = myStich.imgs[i-1]
             
             # stitch to prev
-            matches = feature.solve(cur_img, pre_img, myStich.method)
-            M = homography.estimate(cur_img, pre_img, matches)
+            matches = feature.solve(cur_img, pre_img, myStich.method, myStich.gui)
+            _, M = homography.estimate(cur_img, pre_img, matches, myStich.iter)
             kp1 = cur_img['kp']
             kp2 = pre_img['kp']
             
@@ -77,7 +81,6 @@ if __name__ == "__main__":
         pivotIdx = n_image // 2
         warp_bounds = [0] * n_image
         M_pivot = copy(M_list[pivotIdx])
-        
         
         for i in range(n_image):
             M_list[i] = np.linalg.inv(M_pivot) @ M_list[i]
@@ -104,19 +107,15 @@ if __name__ == "__main__":
             img1 = myStich.imgs[i]['img']
             img2 = myStich.imgs[pivotIdx]['img']
             warp_img = stitch.stitch(img1, img2, M_list[i], (global_w_min, global_h_min), (global_w_max, global_h_max))
-            result = stitch.blend_images(result, warp_img, 0.5, 0.5)
-        
-        cv2.namedWindow('Result', 0)
-        cv2.imshow('Result', result)
-        cv2.waitKey(0)  
-        cv2.destroyAllWindows()
-        pass
+            result = stitch.blend_images(result, warp_img)
     else:
-        matches = feature.solve(myStich.img1, myStich.img2, myStich.method)
-        M, my_M = homography.estimate(myStich.img1, myStich.img2, matches)
+        matches = feature.solve(myStich.img1, myStich.img2, myStich.method, myStich.gui)
+        M, my_M = homography.estimate(myStich.img1, myStich.img2, matches, myStich.iter)
         result = stitch.stitch(myStich.img1['img'], myStich.img2['img'], my_M)
 
     print(f'[INFO] result size: ', result.shape)
+    end = time.time()
+    print(f'[INFO] ', myStich.method, ' takes ', end-start, ' seconds')
     cv2.namedWindow('Result', 0)
     cv2.imshow('Result', result)
     cv2.waitKey(0)  

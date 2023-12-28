@@ -4,14 +4,14 @@ import sys
 
 MIN_MATCH_COUNT = 10
 
-def estimate(img1, img2, matches):
+def estimate(img1, img2, matches, iter):
     if len(matches) > MIN_MATCH_COUNT:
         src_pts = np.float32([ img1['kp'][int(m.queryIdx)].pt for m in matches ]).reshape(-1,1,2)
         dst_pts = np.float32([ img2['kp'][int(m.trainIdx)].pt for m in matches ]).reshape(-1,1,2)
         M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
         print(f'[INFO] homography matrix is:\n', M)
         # print(customized_find_homograph(src_pts, dst_pts))
-        my_M = solve_homograph(src_pts, dst_pts)
+        my_M = solve_homograph(src_pts, dst_pts, max_iteration=iter)
         print(f'[INFO] my homography matrix is:\n', my_M)
         return M, my_M
 
@@ -47,6 +47,14 @@ def solve_homograph(src_pts, dst_pts, epsilon=0.5, max_iteration=100):
         if len(inliers) > len(best_inliers):
             best_inliers = inliers
             estimated_M = M
+
+    if len(best_inliers) > src_pts.shape[0] / 2:
+        return estimated_M
+    else:
+        sampled_idx = np.random.permutation(src_pts.shape[0])[: 4]
+        sampled_src = np.array(src_pts[sampled_idx])
+        sampled_dst = np.array(dst_pts[sampled_idx])
+        solveHomographyMatrix(sampled_src, sampled_dst)
 
     return estimated_M
 
