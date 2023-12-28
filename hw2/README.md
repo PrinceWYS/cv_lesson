@@ -37,7 +37,7 @@ pip install -r requirements.txt
 
 运行程序
 ```shell
-python main.py [-h] [-img1 IMG1] [-img2 IMG2] [-d DIR] [-m METHOD] [-a IFALL] [-g GUI]
+python main.py [-h] [-img1 IMG1] [-img2 IMG2] [-d DIR] [-m METHOD] [-a IFALL] [-g GUI] [-i Iter]
 
     -h, --help            show this help message and exit
     -img1 IMG1, --img1 IMG1

@@ -103,6 +103,7 @@ def matching(img1, img2, gui=False, type="SIFT"):
         if best_match[1] < 0.7 * second_best_match[1]:
             goodMatch.append((query_idx, best_match[0]))
 
+    print(f'[INFO] Num of good match: ', len(goodMatch))
     matches_dmatch = [cv2.DMatch(index1, index2, 0) for index1, index2 in goodMatch]
 
     res = cv2.drawMatches(img1['gray'], img1['kp'], img2['gray'], img2['kp'], matches_dmatch, None, flags=2)

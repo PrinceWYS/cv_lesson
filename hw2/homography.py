@@ -48,6 +48,8 @@ def solve_homograph(src_pts, dst_pts, epsilon=0.5, max_iteration=100):
             best_inliers = inliers
             estimated_M = M
 
+    print(f'[INFO] Num of inliers at best situation: ', len(best_inliers))
+
     if len(best_inliers) > src_pts.shape[0] / 2:
         return estimated_M
     else:
