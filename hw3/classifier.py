@@ -3,7 +3,7 @@ from scipy.spatial.distance import cdist
 
 def knn(train_images, train_labels, test_images):
     print(f'[INFO] Start classify using knn...')
-    k = 6
+    k = 1
     # distances = np.sqrt(np.sum((train_images[:, np.newaxis] - test_images)**2, axis=2))
     distances = cdist(test_images, train_images, metric='euclidean')
     # distances = cdist(train_images, test_images, metric='euclidean')
