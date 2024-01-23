@@ -7,5 +7,5 @@ import sys
 
 if __name__ == "__main__":
     read.readVideo("./data/")
-    solveKP.getKeypoints("./data/output/0.jpg")
+    kps = solveKP.getKeypoints("./data/output/0.jpg")
     

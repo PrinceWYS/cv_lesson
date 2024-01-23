@@ -25,3 +25,4 @@ def getKeypoints(first_image_path):
     kp = sorted(kp, key=lambda point: (point[0], point[1]))
     print(kp)
     print(f'[INFO] You have chosen {len(kp)} keypoints.')
+    return kp
